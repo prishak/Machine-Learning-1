@@ -6,7 +6,7 @@ output:
   html_document: default
   word_document: default
 ---
-#Synopsis:-
+# Synopsis:-
 
 An enthusiastic group of six persons used devices such as Jawbone Up, Nike FuelBand, and Fitbit to quantify self movement to improve their health.The participant exercised with barbell lifts and put the accelerometers on the belt, forearm, arm, and dumbell to generate data, which is stored in the following data set. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways(A,B,C,D,E)  
 CLASS A:- Exactly according to the specification.  
@@ -38,8 +38,8 @@ Training<- read.csv("pml-training.csv",na.strings = c("NA",""),stringsAsFactors 
 Testing <- read.csv("pml-testing.csv",na.strings = c("NA",""),stringsAsFactors = FALSE)    # Read the Testing Data
 ```
 Let see the Dimension of the data set
-```{r Dim of row data, echo=FALSE}
-print("ROW DATA")
+```{r Dim of raw data, echo=FALSE}
+print("RAW DATA")
 a<-rbind(dim(Training),dim(Testing))
 colnames(a)<-c("Observation","Variable")
 rownames(a)<-c("Training","Testing")
@@ -117,7 +117,7 @@ control <- trainControl(method = "cv", number = 5)
 # Model:-Recursive partitioning (rpart)
 cv_train<-train(classe~.,data=training,method="rpart",trControl=control)     
 cv_accuracy<-round(accuracy(cv_train),4)
-# (note:- Decision Tree draw in apendix fig.1)
+# (note:- Decision Tree draw in appendix fig.2)
 
 
 # Model:-Random Forest(rf)
@@ -136,16 +136,20 @@ lda_accuracy<-round(accuracy(lda_train),4)
 all_accuracy<-cbind(cv_accuracy,rf_accuracy,gbm_accuracy,lda_accuracy)
 colnames(all_accuracy)<-c("RPART","RF","GBM","lda")
 all_accuracy
+
 ```
 
-#Accuracy Model Comparison
+# Accuracy Model Comparison
 ```{r barplot accuracy}
 all_accuracy<-c(cv_accuracy,rf_accuracy,gbm_accuracy,lda_accuracy)
 names(all_accuracy)<-c("RPART","RF","GBM","LDA")
 
-bp<-barplot(all_accuracy,main="Accuracy table",ylim = c(0,1),names.arg = c("rpart","RF","GBM","LDA"),col = c("lightblue", "mistyrose", "lavender","skyblue"),ylab = "Accuracy of the model",xlab = "Model Name")
+bp<-barplot(all_accuracy,main="Accuracy Plot",ylim = c(0,1),names.arg = c("rpart","RF","GBM","LDA"),col = c("lightblue", "mistyrose", "lavender","skyblue"),ylab = "Accuracy of the model",xlab = "Model Name")
  text(bp,0,percent(all_accuracy),cex=1,pos=3)
 ```
+
+![Accuracy Plot](https://github.com/prishak/Machine-Learning-1/blob/master/Accuracy%20plot.png)
+
 
 From the above barplot we can see that rpart model gives very less accuracy while "rf"and "gbm" shows best performance.  
 
@@ -175,7 +179,7 @@ names(all_error)<-c("rpart","rf","gbm","lda")
  bp<-barplot(all_error,main="error plot",ylim = c(0,1),names.arg = c("RPART","RF","GBM","LDA"),col = c("lightblue","mistyrose","lavender","skyblue"),ylab = " error of the model",xlab = "Model Name")
 text(bp,0,percent(all_error),cex=1,pos=3)
 ```
-
+![Error plot](https://github.com/prishak/Machine-Learning-1/blob/master/Error%20Plot.png)
 From the above bar plot we estimate that the "rf" has very less expected out of sample error.
 
 We have observed that "rf" has 99.49% of accuracy, moreover the corresponding expected out of sample error also very low. Thus, We have selected "rf" model for our prediction
@@ -186,12 +190,14 @@ predict(rf_train, newdata=Testing_Data)
 
 
 
-#Appendix
+# Appendix
 ```{r}
 library(corrplot)
 corrplot(cor(Training_Data[, -length(names(Training_Data))]), method = "color", tl.cex = 0.5,main="Fig.1  correlation matrix")
 ```
+![fig1.](https://github.com/prishak/Machine-Learning-1/blob/master/Fig.1.png)
 ```{r}
  library(rattle)
 fancyRpartPlot(cv_train$finalModel,main = "Fig 2.Decision Tree")
 ```
+![Fig.2](https://github.com/prishak/Machine-Learning-1/blob/master/Fig%202..png)
