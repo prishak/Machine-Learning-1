@@ -1,0 +1,197 @@
+---
+title: "Machine learning"
+author: "Priyanka Ingole"
+date: "September 8, 2017"
+output:
+  html_document: default
+  word_document: default
+---
+#Synopsis:-
+
+An enthusiastic group of six persons used devices such as Jawbone Up, Nike FuelBand, and Fitbit to quantify self movement to improve their health.The participant exercised with barbell lifts and put the accelerometers on the belt, forearm, arm, and dumbell to generate data, which is stored in the following data set. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways(A,B,C,D,E)  
+CLASS A:- Exactly according to the specification.  
+CLASS B:- Throwing the elbows to the front.  
+CLASS C:- Lifting the dumbbell only halfway.  
+CLASS D:- Lowering the dumbbell only halfway.  
+CLASS E:- Throwing the hips to the front.  
+
+Our goal of this project is to use this data and predict the manner in which they did the exercise.
+
+In this project two data sets are used. The first data set is given to build a multi-class classification model and the second dataset has enlabeled data that has to be predicted and its values submitted for automated grading. The following piece of code in R downloads the data.
+
+```{r Loading & reading data set}
+# Loading URl of Testing & Traing 
+URL_training <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+URL_testing <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+# Specifing File name for storage:-
+setwd("C:/Users/Priyanka/Desktop/couresera/Practical Machine Learning/Project")
+Training <- "./Mc/pml-training.csv"
+Testing<- "./Mc/pml-testing.csv"
+
+# Down loading the Training & Testing url
+download.file(URL_training, destfile=Training)
+download.file(URL_testing, destfile=Testing)
+
+#Reading the training and testing data
+Training<- read.csv("pml-training.csv",na.strings = c("NA",""),stringsAsFactors = FALSE)  # Read the Training data and
+Testing <- read.csv("pml-testing.csv",na.strings = c("NA",""),stringsAsFactors = FALSE)    # Read the Testing Data
+```
+Let see the Dimension of the data set
+```{r Dim of row data, echo=FALSE}
+print("ROW DATA")
+a<-rbind(dim(Training),dim(Testing))
+colnames(a)<-c("Observation","Variable")
+rownames(a)<-c("Training","Testing")
+a
+```
+The Training data set contains 19622 observations and 160 variables, while the Testing data set contains 20 observations and 160 variables.
+
+# Data cleaning:-
+ We will identify the Na value in the data set and remove it. This will reduce the number of columns to 60. Now, while inspecting the data we observed that the first seven columns named- X, user name, raw timestamp part 1, raw timestamp part 2, cvtd timestamp, new window, and num window do not play any vital role in accelerometer measurement. Thus, we will remove these cloumns. Now the cleaned data has only 53 cloumns.
+
+```{r clean data}
+# identify and remove variables with signficant missing values
+Training<- Training[,(colSums(is.na(Training)) == 0)]
+Testing <- Testing[,(colSums(is.na(Testing)) == 0)]
+
+# removing first seven Predictors which has no relation for our prediction 
+Training_Data<-Training[,-c(1:7)]
+Testing_Data<-Testing[,-c(1:7)]
+
+# set dependent ("classe") variable to a factor variable
+Training$classe <- as.factor(Training$classe)
+```
+```{r dim of clean data, echo=FALSE}
+# cleaned data:-
+print("CLEAN DATA")
+
+b<-rbind(dim(Training_Data),dim(Testing_Data))
+colnames(b)<-c("Observation","Variable")
+rownames(b)<-c("Training","Testing")
+b
+```
+(NOTE:-Appendix shows the Correlation Matrix of Columns in the Training Data set as "fig.1  correlation matrix" plot)
+
+# Packages loading
+To start our work, we need to load necessary packages in the R and further we have to set a seed for reproducibility.
+```{r package loading, include=FALSE}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(scales)         #Percent formatter
+
+#Method:-
+library(rpart)          #"cv" method
+library(randomForest)   #"rf" method
+library(plyr)           #"gbm" method
+library(dplyr)
+library(gbm)
+library(MASS)           #"lda"method
+
+set.seed(7826)          #seed set for reproducibility
+```
+
+# Data splitting
+
+After cleaning the data, the `Training` data set provided is spitted into two sets. One set is used to build a random forest model and the other is used test the model. The split was based on the outcome in the outcome variable (classe), which has 5 distinct values (A, B, C, D, E) that correspond to each exercise, with 75% of the samples for training the model and 25% for testing. The following R code shows how the data was split.
+```{r Data splitting}
+intrain<-createDataPartition(y=Training_Data$classe,p=0.75,list=FALSE)
+training<-Training_Data[intrain,]
+testing<-Training_Data[-intrain,]
+```
+
+# Model selection:-
+```{r predict and conf.marix}
+accuracy<-function(model){  
+  predictions<-predict(model,testing)
+  return(confusionMatrix(predictions,testing$classe)$overall[1])
+  }
+```
+
+To modify the resampling method, a trainControl function is used. The option `method` controls the type of resampling. Here we have used "cv" method i.e cross-validation.
+The train function from the caret package was used to build each model. Many models have unique model specific parameters that need to be explicitly specified. There are hundreds of different models and probably several thousand parameters. The train function deals with this parameters using resampling methods. Four different model were used and their results were compaired to arrive at best accurate model for our prection. Following model were used - Recursive partitioning (rpart), Random Forest(rf), Stochastic Gradient Boosting (gbm), Linear Discriminant Analysis (lda).
+```{r model accuracy}
+control <- trainControl(method = "cv", number = 5)
+
+# Model:-Recursive partitioning (rpart)
+cv_train<-train(classe~.,data=training,method="rpart",trControl=control)     
+cv_accuracy<-round(accuracy(cv_train),4)
+# (note:- Decision Tree draw in apendix fig.1)
+
+
+# Model:-Random Forest(rf)
+rf_train<-train(classe~.,data=training,method="rf",trControl=control,verbose=FALSE)
+rf_accuracy<-round(accuracy(rf_train),4)
+
+# Model:-Stochastic Gradient Boosting (gbm)
+gbm_train<-train(classe~.,data=training,method="gbm",trControl=control,verbose=FALSE)
+gbm_accuracy<-round(accuracy(gbm_train),4)
+
+#Model:-Linear Discriminant Analysis (lda)
+lda_train<-train(classe~.,data=training,method="lda",trControl=control,verbose=FALSE)
+lda_accuracy<-round(accuracy(lda_train),4)
+
+#Aggregate the accuracy of all model:-
+all_accuracy<-cbind(cv_accuracy,rf_accuracy,gbm_accuracy,lda_accuracy)
+colnames(all_accuracy)<-c("RPART","RF","GBM","lda")
+all_accuracy
+```
+
+#Accuracy Model Comparison
+```{r barplot accuracy}
+all_accuracy<-c(cv_accuracy,rf_accuracy,gbm_accuracy,lda_accuracy)
+names(all_accuracy)<-c("RPART","RF","GBM","LDA")
+
+bp<-barplot(all_accuracy,main="Accuracy table",ylim = c(0,1),names.arg = c("rpart","RF","GBM","LDA"),col = c("lightblue", "mistyrose", "lavender","skyblue"),ylab = "Accuracy of the model",xlab = "Model Name")
+ text(bp,0,percent(all_accuracy),cex=1,pos=3)
+```
+
+From the above barplot we can see that rpart model gives very less accuracy while "rf"and "gbm" shows best performance.  
+
+#The expected out of sample error:-  
+The expected out-of-sample error corresponds to the quantity: one minus accuracy in the cross-validation data. Accuracy is the proportion of correct classified observation over the total sample in the subTesting data set. Expected accuracy is the expected accuracy in the out-of-sample data set (i.e. original testing data set). Thus, the expected value of the out-of-sample error corresponds to the expected number of missclassified observations/total observations in the Test data set.
+```{r error function}
+error<-function(model){  
+  predictions<-predict(model,testing)
+  return(1-as.numeric(confusionMatrix(predictions,testing$classe)$overall[1]))
+  }
+```
+
+```{r}
+error_cv<-round(error(cv_train),4)
+error_rf<-round(error(rf_train),4)
+error_gbm<-round(error(gbm_train),4)
+error_lda<-round(error(lda_train),4)
+all_error<-cbind(error_cv,error_rf,error_gbm,error_lda)
+colnames(all_error)<-c("cv","rf","gbm","lda")
+all_error
+```
+# Out of sample error comparison of Models
+```{r}
+all_error<-c(error_cv,error_rf,error_gbm,error_lda)
+names(all_error)<-c("rpart","rf","gbm","lda")
+
+ bp<-barplot(all_error,main="error plot",ylim = c(0,1),names.arg = c("RPART","RF","GBM","LDA"),col = c("lightblue","mistyrose","lavender","skyblue"),ylab = " error of the model",xlab = "Model Name")
+text(bp,0,percent(all_error),cex=1,pos=3)
+```
+
+From the above bar plot we estimate that the "rf" has very less expected out of sample error.
+
+We have observed that "rf" has 99.49% of accuracy, moreover the corresponding expected out of sample error also very low. Thus, We have selected "rf" model for our prediction
+
+```{r}
+predict(rf_train, newdata=Testing_Data)
+```
+
+
+
+#Appendix
+```{r}
+library(corrplot)
+corrplot(cor(Training_Data[, -length(names(Training_Data))]), method = "color", tl.cex = 0.5,main="Fig.1  correlation matrix")
+```
+```{r}
+ library(rattle)
+fancyRpartPlot(cv_train$finalModel,main = "Fig 2.Decision Tree")
+```
